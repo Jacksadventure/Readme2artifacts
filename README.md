@@ -6,9 +6,7 @@ This repository is a Python-based agent that uses an LLM to:
 - Run tests inside the container (auto-detected test command, e.g., npm run test:unit, npx jest tests/unit, npx vitest run).
 - Iteratively refine the Dockerfile using build/test logs until success or attempts are exhausted.
 
-The agent is configured to work with the included `vue-element-admin/` project (PanJiaChen/vue-element-admin) and focuses on verifying its unit tests for `utils/validate`.
-
-See: `Coding Task - Agent.pdf` for the original task description and success criteria.
+The agent is tested to work with the included `vue-element-admin/` project (PanJiaChen/vue-element-admin) and focuses on verifying its unit tests for `utils/validate`.
 
 ---
 
@@ -129,9 +127,9 @@ export NO_PROXY="localhost,127.0.0.1"
 
 ## Usage
 
-Run the agent by passing the README file of the target project:
+Run the agent by passing the README file and specifications of the target project:
 ```bash
-python3 agent.py vue-element-admin/README.md
+python3 agent.py vue-element-admin/README.md "Default command should start the vue dev server on port 9528\n"
 ```
 
 What happens:
