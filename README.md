@@ -2,8 +2,8 @@
 
 This repository is a Python-based agent that uses an LLM to:
 - Generate and refine a Dockerfile from a project README.
-- Build a Docker image named `my-vue` and run a container exposing port `9528`.
-- Run tests inside the container (`npx jest tests/unit/utils/validate.spec.js`).
+- Build a Docker image (name auto-derived from the project folder) and run a container exposing an auto-detected port (from Dockerfile EXPOSE/README/package.json/.env; fallback 9528).
+- Run tests inside the container (auto-detected test command, e.g., npm run test:unit, npx jest tests/unit, npx vitest run).
 - Iteratively refine the Dockerfile using build/test logs until success or attempts are exhausted.
 
 The agent is configured to work with the included `vue-element-admin/` project (PanJiaChen/vue-element-admin) and focuses on verifying its unit tests for `utils/validate`.
@@ -33,8 +33,8 @@ See: `Coding Task - Agent.pdf` for the original task description and success cri
 
 Given a path to a repository README, the agent:
 1. Calls an LLM to produce a Dockerfile tailored to the project and provided specs.
-2. Builds the Docker image `my-vue`, runs it as container `my-vue`, and maps port `9528`.
-3. Waits for readiness and runs `npx jest tests/unit/utils/validate.spec.js` inside the container.
+2. Builds a Docker image (auto-derived name), runs it as a container, and maps the auto-detected port (fallback 9528).
+3. Waits for readiness and runs the auto-detected test command inside the container (e.g., npm run test:unit, npx jest tests/unit, npx vitest run).
 4. If the build/test fails, the agent:
    - Collects logs and error output.
    - Uses the LLM to refine the Dockerfile.
@@ -66,7 +66,9 @@ Key modules:
   - Returns a unified `response_body` for downstream use.
 
 Runtime behavior highlights:
-- Default image/container name and port: `IMAGE=CONTAINER="my-vue"`, `PORT=9528`.
+- Image/container name: auto-derived from project folder name (slug)
+- Port detection: auto-detected from Dockerfile EXPOSE/README/package.json/.env; fallback 9528
+- Test command detection: auto-detected from package.json scripts or dependencies (jest/vitest); fallback "npm test --silent"
 - Readiness wait: up to 120s (polling every 2s).
 - Build retries with refinement: up to 10 attempts per build cycle.
 - Test cycles: up to 5 attempts. On each failed attempt, the agent can regenerate/refine the Dockerfile and retry.
@@ -134,11 +136,8 @@ python3 agent.py vue-element-admin/README.md
 
 What happens:
 - The agent generates `vue-element-admin/Dockerfile` via LLM.
-- Builds image `my-vue` and starts container `my-vue` mapping `9528:9528`.
-- Waits for readiness and then runs:
-  ```bash
-  npx jest tests/unit/utils/validate.spec.js
-  ```
+- Builds an image (auto-derived name) and starts a container mapping `<port>:<port>` where the port is auto-detected (fallback 9528).
+- Waits for readiness and then runs the auto-detected test command inside the container (examples: npm run test:unit, npx jest tests/unit, npx vitest run).
 - Interprets the test output via an LLM judge to determine pass/fail.
 - If it fails, it will collect logs and retry with refined Dockerfiles up to the configured limits.
 
@@ -148,7 +147,7 @@ SUCCESS: All specified tests passed.
 ```
 
 To manually inspect the app (if the dev server is running in the container), visit:
-- http://localhost:9528/
+- http://localhost:<detected-port>/ (defaults to 9528 if not found)
 
 ---
 
@@ -190,20 +189,20 @@ Precedence:
    - Retries (re-generate/refine) up to 5 attempts.
 
 2. Build with Docker
-   - Target image: `my-vue`.
+   - Target image: auto-derived name.
    - Forwards proxy-related env vars (`HTTP_PROXY`, etc.) to the build.
    - On failure, dump logs and call `prompts.refine_dockerfile` with error messages.
 
 3. Run container
-   - Name: `my-vue`
-   - Port mapping: `-p 9528:9528`
+   - Name: auto-derived
+   - Port mapping: `-p <port>:<port>` (auto-detected; fallback 9528)
 
 4. Readiness
    - Polls `http://localhost:9528/` for up to 120s.
    - If not ready, it will still proceed to tests and print diagnostics.
 
 5. Tests
-   - Executes inside the container: `npx jest tests/unit/utils/validate.spec.js`
+   - Executes inside the container: auto-detected test command (examples: npm run test:unit, npx jest tests/unit, npx vitest run)
    - Uses `prompts.test_verify` to robustly judge pass/fail from output.
    - Retries (re-generate/refine) up to 5 attempts.
 
@@ -212,11 +211,10 @@ Precedence:
 ## Configuration
 
 - Image/container name and port
-  - See constants in `agent.py`:
-    - `IMAGE = "my-vue"`
-    - `CONTAINER = "my-vue"`
-    - `PORT = 9528`
-  - Adjust if needed.
+  - Image/container: auto-derived from project folder (slug)
+  - Port: auto-detected from Dockerfile EXPOSE/README/package.json/.env; fallback 9528
+  - Test command: auto-detected from package.json scripts or dependencies (jest/vitest); fallback "npm test --silent"
+  - You can influence Dockerfile CMD/EXPOSE via "Providing Specifications" or by editing the generated Dockerfile.
 
 - Attempt limits and timings
   - `READINESS_TIMEOUT_SEC = 120`
@@ -258,7 +256,7 @@ Precedence:
 
 - Container starts but http://localhost:9528/ is not ready
   - The agent still runs tests; readiness is best-effort.
-  - Check `docker logs my-vue` printed by the agent.
+  - Check docker logs printed by the agent (it prints the container name).
 
 - Test verification seems incorrect
   - `prompts.test_verify` uses an LLM judge. You can also manually inspect the Jest output printed before the judge’s verdict.

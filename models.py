@@ -1,8 +1,7 @@
-from ollama import Client       
 import os
 import re
-from openai import OpenAI
-import anthropic
+
+# SDK imports are deferred inside model classes to avoid requiring all packages at runtime.
 
 class response_body:
     def __init__(self, response_text: str,
@@ -16,7 +15,11 @@ class response_body:
 
 class OllamaModel:
     def __init__(self, model_name: str):
-        self.client = Client()       
+        try:
+            from ollama import Client as OllamaClient
+        except ImportError as e:
+            raise RuntimeError("Ollama backend selected but 'ollama' package is not installed. Install with: pip install ollama") from e
+        self.client = OllamaClient()
         self.model_name = model_name
 
     def get_response(self, prompt: str, text: str):
@@ -42,7 +45,11 @@ class OllamaModel:
 
 class OpenAIModel:
     def __init__(self, model):
-        self.client = OpenAI()
+        try:
+            from openai import OpenAI as OpenAIClient
+        except ImportError as e:
+            raise RuntimeError("OpenAI backend selected but 'openai' package is not installed. Install with: pip install openai") from e
+        self.client = OpenAIClient()
         self.model = model
 
     def get_response(self, prompt: str, text: str):
@@ -68,7 +75,11 @@ class OpenAIModel:
 class ClaudeModel:
     def __init__(self, model):
         api_key = os.getenv("ANTHROPIC_API_KEY")
-        self.client = anthropic.Anthropic(api_key=api_key)
+        try:
+            import anthropic as anthropic_lib
+        except ImportError as e:
+            raise RuntimeError("Claude backend selected but 'anthropic' package is not installed. Install with: pip install anthropic") from e
+        self.client = anthropic_lib.Anthropic(api_key=api_key)
         self.model = model
 
     def get_response(self, prompt: str, text: str):
