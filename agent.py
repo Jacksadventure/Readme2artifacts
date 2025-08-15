@@ -15,6 +15,7 @@ CONTAINER = "my-vue"
 PORT = 9528
 READINESS_TIMEOUT_SEC = 120
 READINESS_INTERVAL_SEC = 2
+DEFAULT_SPECIFICATIONS = "Default command should start the vue dev server on port 9528\n"
 
 def log_section(title: str):
   print(f"\n=== {title} ===", flush=True)
@@ -25,7 +26,43 @@ def read_text(p: Path) -> str:
   except Exception:
     return None
 
-def write_dockerfile_from_readme(readme_path: Path):
+def resolve_specifications(argv) -> str:
+  spec = None
+  args = list(argv[2:])
+  i = 0
+  while i < len(args):
+    a = args[i]
+    if a in ("--spec", "-s"):
+      if i + 1 >= len(args):
+        raise RuntimeError("--spec requires a value")
+      spec = args[i + 1]
+      i += 2
+      continue
+    if a in ("--spec-file", "-f"):
+      if i + 1 >= len(args):
+        raise RuntimeError("--spec-file requires a path")
+      p = Path(args[i + 1]).expanduser()
+      if not p.exists():
+        raise RuntimeError(f"Spec file not found: {p}")
+      spec = read_text(p) or ""
+      i += 2
+      continue
+    i += 1
+
+  if spec is None:
+    env_spec = os.environ.get("DOCKER_SPECS") or os.environ.get("DOCKER_SPECIFICATIONS") or os.environ.get("SPECIFICATIONS")
+    if env_spec:
+      spec = env_spec
+
+  if spec is None and len(argv) >= 3 and not argv[2].startswith("-"):
+    spec = argv[2]
+
+  if spec is None:
+    spec = DEFAULT_SPECIFICATIONS
+
+  return spec
+
+def write_dockerfile_from_readme(readme_path: Path, specifications: str):
   log_section("Generating Dockerfile from README")
   if not readme_path.exists():
     raise RuntimeError(f"README not found: {readme_path}")
@@ -43,9 +80,6 @@ def write_dockerfile_from_readme(readme_path: Path):
     )
   except Exception:
     folder_listing = ""
-  specifications = (
-    "Default command should start the vue dev server on port 9528\n"
-  )
   dockerfile = generate_dockerfile(folder_listing, readme_text, specifications)
 
   out_path = project_root / "Dockerfile"
@@ -216,11 +250,12 @@ def docker_logs_tail(lines: int = 200) -> str:
 def main():
   try:
     if len(sys.argv) < 2:
-      print("Usage: python3 agent.py /path/to/vue-element-admin/README.md", file=sys.stderr)
+      print("Usage: python3 agent.py /path/to/README.md [--spec '...'] [--spec-file path]", file=sys.stderr)
       sys.exit(1)
 
     readme_arg = Path(sys.argv[1]).resolve()
-    project_root, _ = write_dockerfile_from_readme(readme_arg)
+    specs = resolve_specifications(sys.argv)
+    project_root, _ = write_dockerfile_from_readme(readme_arg, specs)
 
     ensure_docker()
 
@@ -263,7 +298,7 @@ def main():
       print(docker_logs_tail(400))
       if attempt < max_test_attempts:
         log_section("Regenerating Dockerfile from README and retrying")
-        project_root, _ = write_dockerfile_from_readme(readme_arg)
+        project_root, _ = write_dockerfile_from_readme(readme_arg, specs)
         continue
 
       # No attempts left

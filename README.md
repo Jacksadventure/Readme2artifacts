@@ -19,6 +19,7 @@ See: `Coding Task - Agent.pdf` for the original task description and success cri
 - Prerequisites
 - Setup
 - Usage
+- Providing Specifications
 - What the agent does
 - Configuration (AI backends, env vars)
 - Troubleshooting
@@ -150,6 +151,36 @@ To manually inspect the app (if the dev server is running in the container), vis
 - http://localhost:9528/
 
 ---
+
+## Providing Specifications
+
+You can provide custom specifications that guide the LLM when generating the Dockerfile. These specs are combined with the target README and folder listing.
+
+Supported sources (highest precedence first):
+1. Inline flag: --spec "..." or -s "..."
+2. From file: --spec-file PATH or -f PATH
+3. Environment variables: DOCKER_SPECS, DOCKER_SPECIFICATIONS, or SPECIFICATIONS
+4. Second positional argument after the README path (must not start with "-")
+5. Fallback default: Default command should start the vue dev server on port 9528
+
+Examples:
+```bash
+# Positional specs
+python3 agent.py vue-element-admin/README.md "Use Node 18, install with yarn, expose 9528, run npm run dev"
+
+# Inline flag
+python3 agent.py vue-element-admin/README.md --spec "Use Node 18, install with yarn, expose 9528, run npm run dev"
+
+# From file
+python3 agent.py vue-element-admin/README.md --spec-file ./specs.txt
+
+# From environment variable
+export DOCKER_SPECS="Use Node 18, install with yarn, expose 9528, run npm run dev"
+python3 agent.py vue-element-admin/README.md
+```
+
+Precedence:
+--spec/--spec-file > environment variables > second positional argument > default.
 
 ## What the agent does (detailed)
 
