@@ -1,4 +1,4 @@
-# Automated Docker Builder & Tester Agent (vue-element-admin)
+# Automated Docker Builder & Tester Agent
 
 This repository is a Python-based agent that uses an LLM to:
 - Generate and refine a Dockerfile from a project README.
