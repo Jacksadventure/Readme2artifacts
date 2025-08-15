@@ -297,6 +297,15 @@ Top-level (abridged):
 
 ---
 
+## Future Plans & Collaboration
+
+If you’re interested in this project, and want to empower AI to real-world software engineering tasks, I’m open to collaboration.
+
+My future goals are:
+1. Support for different project build tools (e.g., Cargo, Maven, CMake)
+2. Automated vulnerability scanning
+3. Using RAG (Retrieval-Augmented Generation) to retrieve environment variables required for project builds
+
 ## License and credits
 
 - The `vue-element-admin` project is by PanJiaChen and is distributed under its own license. See `vue-element-admin/LICENSE` for details.
